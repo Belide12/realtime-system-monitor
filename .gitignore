@@ -12,7 +12,7 @@ Desktop.ini
 *.swo
 
 ############################################
-# Git / logs
+# Logs / temp
 ############################################
 *.log
 logs/
@@ -20,7 +20,7 @@ logs/
 *.bak
 
 ############################################
-# Python (all services: agent/consumer/backend)
+# Python (agent/consumer/backend)
 ############################################
 __pycache__/
 *.py[cod]
@@ -36,14 +36,14 @@ env/
 **/ENV/
 **/env/
 
-# Python build artifacts
+# Build artifacts
 build/
 dist/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
 
-# Unit test / coverage
+# Test/Coverage
 .pytest_cache/
 .coverage
 .coverage.*
@@ -54,7 +54,9 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
-# Local secrets / env files
+############################################
+# Secrets / env files
+############################################
 .env
 .env.*
 *.pem
@@ -65,10 +67,8 @@ htmlcov/
 ############################################
 node_modules/
 **/node_modules/
-
 dist/
 **/dist/
-
 .vite/
 **/.vite/
 
@@ -77,23 +77,20 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-############################################
-# Frontend env files
-############################################
+# Frontend env
 frontend/.env
 frontend/.env.*
 **/.env.local
 
 ############################################
-# Docker
+# Docker local volumes (if you add later)
 ############################################
-# If you create local bind mounts/data folders later
 data/
 postgres-data/
 kafka-data/
 
 ############################################
-# Misc
+# Misc DB files
 ############################################
 *.sqlite
 *.db
