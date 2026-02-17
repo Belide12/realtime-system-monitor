@@ -110,3 +110,4 @@ def metrics_range(
         for r in rows
     ]
     return {"host": host, "points": series}
+    
