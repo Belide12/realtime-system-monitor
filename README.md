@@ -1,10 +1,10 @@
 # Real-Time System Monitoring Dashboard (Kafka + Postgres + FastAPI + React)
 
 <p align="center">
-  <img src="C:\Users\91939\Downloads\dashboard1.png.jpg" width="800"/>
+  <img src="docs\dashboard1.png.jpg" width="800"/>
 </p>
 <p align="center">
-  <img src="C:\Users\91939\Downloads\dashboard2.png.jpg" width="800"/>
+  <img src="docs\dashboard2.png.jpg" width="800"/>
 </p>
 A production-style real-time monitoring system that streams host metrics through Kafka, persists them to PostgreSQL, serves time-series APIs via FastAPI, and visualizes metrics in a React dashboard with alerts and host comparison.
 
