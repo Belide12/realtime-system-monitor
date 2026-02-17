@@ -1,5 +1,8 @@
 # Real-Time System Monitoring Dashboard (Kafka + Postgres + FastAPI + React)
 
+![Dashboard]("C:\Users\91939\Downloads\dashboard1.png.jpg")
+![Dashboard]("C:\Users\91939\Downloads\dashboard2.png.jpg")
+
 A production-style real-time monitoring system that streams host metrics through Kafka, persists them to PostgreSQL, serves time-series APIs via FastAPI, and visualizes metrics in a React dashboard with alerts and host comparison.
 
 ## Features
@@ -32,3 +35,4 @@ From repo root:
 ```bash
 docker compose up -d
 docker ps
+
