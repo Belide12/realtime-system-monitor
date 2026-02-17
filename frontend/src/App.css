@@ -1,0 +1,373 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+const API_BASE = "http://localhost:8000";
+
+// Alert thresholds (you can tune)
+const THRESHOLDS = {
+  cpu: 80,
+  mem: 90,
+  disk: 85,
+};
+
+function formatPct(v) {
+  if (v === null || v === undefined) return "--";
+  return `${v.toFixed(1)}%`;
+}
+
+function statusColor(metric, value) {
+  const t = THRESHOLDS[metric];
+  if (value >= t) return "crimson";
+  if (value >= t * 0.8) return "orange";
+  return "seagreen";
+}
+
+function Card({ title, value, color, subtitle, children }) {
+  return (
+    <div
+      style={{
+        border: "1px solid #2a2a2a",
+        borderRadius: 14,
+        padding: 14,
+        background: "#111",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+        minHeight: 110,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>{title}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color, marginTop: 6 }}>
+            {value}
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+            {subtitle}
+          </div>
+        </div>
+        <div style={{ width: 140, height: 70 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function MiniSpark({ data, keyName }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data}>
+        <Line type="monotone" dataKey={keyName} dot={false} strokeWidth={2} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+export default function App() {
+  const [hosts, setHosts] = useState([]);
+  const [host, setHost] = useState("");
+  const [points, setPoints] = useState([]);
+  const [error, setError] = useState("");
+  const [paused, setPaused] = useState(false);
+  const [refreshMs, setRefreshMs] = useState(2000);
+  const [limit, setLimit] = useState(120);
+
+  const [alerts, setAlerts] = useState([]);
+  const lastUpdatedRef = useRef(null);
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  // load hosts once
+  useEffect(() => {
+    fetch(`${API_BASE}/hosts`)
+      .then((r) => r.json())
+      .then((j) => {
+        const hs = j.hosts || [];
+        setHosts(hs);
+        if (hs.length > 0) setHost(hs[0]);
+      })
+      .catch((e) => setError(String(e)));
+  }, []);
+
+  // fetch points
+  const load = async () => {
+    if (!host) return;
+    try {
+      const r = await fetch(
+        `${API_BASE}/metrics/range?host=${encodeURIComponent(host)}&limit=${limit}`
+      );
+      const j = await r.json();
+      setPoints(j.points || []);
+      setError("");
+
+      const now = new Date();
+      lastUpdatedRef.current = now;
+      setLastUpdated(now.toLocaleTimeString());
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  // polling loop
+  useEffect(() => {
+    if (!host) return;
+    if (paused) return;
+
+    load();
+    const id = setInterval(load, refreshMs);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, paused, refreshMs, limit]);
+
+  // compute latest values
+  const latest = points.length ? points[points.length - 1] : null;
+  const cpu = latest?.cpu ?? null;
+  const mem = latest?.mem ?? null;
+  const disk = latest?.disk ?? null;
+
+  // sparkline data (last 30)
+  const spark = useMemo(() => points.slice(Math.max(0, points.length - 30)), [points]);
+
+  // generate alerts (simple: if latest above threshold)
+  useEffect(() => {
+    if (!latest) return;
+
+    const newAlerts = [];
+
+    if (cpu >= THRESHOLDS.cpu)
+      newAlerts.push({ type: "CPU", msg: `CPU high: ${formatPct(cpu)}`, ts: new Date().toISOString() });
+    if (mem >= THRESHOLDS.mem)
+      newAlerts.push({ type: "MEM", msg: `Memory high: ${formatPct(mem)}`, ts: new Date().toISOString() });
+    if (disk >= THRESHOLDS.disk)
+      newAlerts.push({ type: "DISK", msg: `Disk high: ${formatPct(disk)}`, ts: new Date().toISOString() });
+
+    if (newAlerts.length) {
+      setAlerts((prev) => [...newAlerts, ...prev].slice(0, 10));
+    }
+  }, [cpu, mem, disk]); // depends on latest values
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "radial-gradient(circle at 20% 10%, #1a1a1a 0%, #0b0b0b 40%, #000 100%)",
+        color: "#f2f2f2",
+        fontFamily: "system-ui, Arial",
+        padding: 20,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 26 }}>Real-Time System Monitor</h1>
+          <div style={{ opacity: 0.75, marginTop: 6 }}>
+            Backend: {API_BASE} • Last updated: {lastUpdated || "--"}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <label>
+            Host:&nbsp;
+            <select value={host} onChange={(e) => setHost(e.target.value)}>
+              {hosts.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Range:&nbsp;
+            <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+              <option value={60}>Last ~1–2 min</option>
+              <option value={120}>Last ~3–5 min</option>
+              <option value={300}>Last ~10–15 min</option>
+            </select>
+          </label>
+
+          <label>
+            Refresh:&nbsp;
+            <select value={refreshMs} onChange={(e) => setRefreshMs(Number(e.target.value))}>
+              <option value={1000}>1s</option>
+              <option value={2000}>2s</option>
+              <option value={5000}>5s</option>
+              <option value={10000}>10s</option>
+            </select>
+          </label>
+
+          <button
+            onClick={() => setPaused((p) => !p)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid #2a2a2a",
+              background: paused ? "#222" : "#111",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            {paused ? "Resume" : "Pause"}
+          </button>
+
+          <button
+            onClick={load}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid #2a2a2a",
+              background: "#111",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Refresh now
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ marginTop: 14, color: "crimson" }}>
+          Error: {error} (Is FastAPI running on :8000?)
+        </div>
+      )}
+
+      {/* KPI cards */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 14,
+          marginTop: 16,
+        }}
+      >
+        <Card
+          title="CPU Usage"
+          value={formatPct(cpu)}
+          color={statusColor("cpu", cpu || 0)}
+          subtitle={`Alert at ${THRESHOLDS.cpu}%`}
+        >
+          <MiniSpark data={spark} keyName="cpu" />
+        </Card>
+
+        <Card
+          title="Memory Usage"
+          value={formatPct(mem)}
+          color={statusColor("mem", mem || 0)}
+          subtitle={`Alert at ${THRESHOLDS.mem}%`}
+        >
+          <MiniSpark data={spark} keyName="mem" />
+        </Card>
+
+        <Card
+          title="Disk Usage"
+          value={formatPct(disk)}
+          color={statusColor("disk", disk || 0)}
+          subtitle={`Alert at ${THRESHOLDS.disk}%`}
+        >
+          <MiniSpark data={spark} keyName="disk" />
+        </Card>
+      </div>
+
+      {/* Main chart + alerts */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: 14,
+          marginTop: 14,
+        }}
+      >
+        <div
+          style={{
+            border: "1px solid #2a2a2a",
+            borderRadius: 14,
+            padding: 14,
+            background: "#0d0d0d",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+            minHeight: 460,
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>Live Metrics (CPU / MEM / DISK)</div>
+
+          <div style={{ width: "100%", height: 410 }}>
+            <ResponsiveContainer>
+              <LineChart data={points}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="ts" hide />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Line type="monotone" dataKey="cpu" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="mem" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="disk" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div
+          style={{
+            border: "1px solid #2a2a2a",
+            borderRadius: 14,
+            padding: 14,
+            background: "#0d0d0d",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+            minHeight: 460,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Alerts</div>
+            <button
+              onClick={() => setAlerts([])}
+              style={{
+                borderRadius: 10,
+                border: "1px solid #2a2a2a",
+                background: "#111",
+                color: "#fff",
+                cursor: "pointer",
+                padding: "6px 10px",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div style={{ marginTop: 10, opacity: 0.75, fontSize: 12 }}>
+            Triggers when latest value crosses threshold.
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            {alerts.length === 0 ? (
+              <div style={{ opacity: 0.7 }}>No alerts right now ✅</div>
+            ) : (
+              alerts.map((a, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    border: "1px solid #2a2a2a",
+                    borderRadius: 12,
+                    padding: 10,
+                    background: "#111",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: "crimson" }}>{a.type} Alert</div>
+                  <div style={{ marginTop: 4 }}>{a.msg}</div>
+                  <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>
+                    {new Date(a.ts).toLocaleString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 18, opacity: 0.6, fontSize: 12 }}>
+        Tip: Run agent + consumer continuously for live updates.
+      </div>
+    </div>
+  );
+}

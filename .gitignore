@@ -1,0 +1,99 @@
+############################################
+# OS / Editor / IDE
+############################################
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+############################################
+# Git / logs
+############################################
+*.log
+logs/
+*.tmp
+*.bak
+
+############################################
+# Python (all services: agent/consumer/backend)
+############################################
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local secrets / env files
+.env
+.env.*
+*.pem
+*.key
+
+############################################
+# Node / React (frontend)
+############################################
+node_modules/
+**/node_modules/
+
+dist/
+**/dist/
+
+.vite/
+**/.vite/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+############################################
+# Frontend env files
+############################################
+frontend/.env
+frontend/.env.*
+**/.env.local
+
+############################################
+# Docker
+############################################
+# If you create local bind mounts/data folders later
+data/
+postgres-data/
+kafka-data/
+
+############################################
+# Misc
+############################################
+*.sqlite
+*.db
